@@ -1,0 +1,161 @@
+x-php-base: &php_base
+  build:
+    context: ./dockerfiles
+    dockerfile: php/dockerfile
+  user: ${UID}:${GID}
+  volumes:
+    - ./src:/var/www:delegated
+    - composer_cache:/.composer
+    - npm_cache:/.npm
+  working_dir: /var/www
+  environment:
+    COMMAND: php artisan octane:start --watch --host=0.0.0.0 --port=8000
+    PROCESS: app
+    DB_USERNAME: tasker_app_user
+    DB_PASSWORD: a_very_secure_password
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: tasker_db
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./dockerfiles/postgres/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-tasker}
+      POSTGRES_USER: ${DB_SUPER_USER:-tasker_admin}
+      POSTGRES_PASSWORD: ${DB_SUPER_PASSWORD:-supersecret}
+      DB_APP_USER: ${DB_USERNAME:-tasker_app_user}
+      DB_APP_PASSWORD: ${DB_PASSWORD:-a_very_secure_password}
+    networks:
+      - database_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tasker} -d ${DB_DATABASE:-tasker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tasker_redis
+    restart: unless-stopped
+    command: --requirepass ${REDIS_PASSWORD:-secret}
+    volumes:
+      - redis_data:/data
+    networks:
+      - redis_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secret}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    <<: *php_base
+    container_name: tasker_app
+    networks:
+      - database_net
+      - redis_net
+      - web_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${OCTANE_PORT:-8000}/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  horizon:
+    <<: *php_base
+    container_name: tasker_horizon
+    environment:
+     COMMAND: php artisan horizon
+     PROCESS: horizon
+    restart: unless-stopped
+    networks:
+      - database_net
+      - redis_net
+    healthcheck:
+     test: php artisan horizon:status | grep -q 'is running'  # TODO try spatie LARAVEL-HEALTH
+     interval: 5s
+     timeout: 10s
+     retries: 20
+  webserver:
+    image: nginx:stable-alpine
+    container_name: tasker_webserver
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./src:/var/www:delegated
+      - ./dockerfiles/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./storage/logs/nginx/:/var/log/nginx/
+    networks:
+      - web_net
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  composer:
+    image: composer:2.8.6
+    container_name: tasker_composer
+    volumes:
+      - ./src:/app
+      - composer_cache:/.composer
+    working_dir: /app
+    user: ${UID:-1000}:${GID:-1000}
+    networks:
+      - database_net
+      - redis_net
+
+  npm:
+    image: node:18-alpine
+    container_name: tasker_npm
+    user: node
+    working_dir: /var/www/src
+    volumes:
+      - ./src:/var/www/:delegated
+      - npm_cache:/.npm
+    ports:
+      - 5173:5173
+    entrypoint: ["npm"]
+    networks:
+      - web_net
+
+  artisan:
+    <<: *php_base
+    container_name: tasker_artisan
+    entrypoint: ["php", "artisan"]
+    command: ["list"]
+    networks:
+      - database_net
+      - redis_net
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+  composer_cache:
+    driver: local
+    name: composer_cache
+  npm_cache:
+   driver: local
+   name: npm_cache
+
+networks:
+  database_net:
+    driver: bridge
+  redis_net:
+    driver: bridge
+  web_net:
+    driver: bridge

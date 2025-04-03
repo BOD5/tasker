@@ -1,0 +1,2 @@
+# Run the Laravel scheduler every minute
+* * * * * php /var/www/src/artisan schedule:run >> /dev/null 2>&1
