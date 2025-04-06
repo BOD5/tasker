@@ -144,7 +144,7 @@ request: ## Make a new form request (e.g., make request StorePostRequest)
 # ====================================================================================
 
 pint: ## Format PHP code using Laravel Pint
-	docker compose run --rm artisan ./vendor/bin/pint $(filter-out $@,$(MAKECMDGOALS))
+	docker compose run --rm --entrypoint php artisan ./vendor/bin/pint $(filter-out $@,$(MAKECMDGOALS))
 %:
 	@:
 
@@ -156,12 +156,11 @@ test: ## Run PHPUnit/Pest tests
 swagger: ## Generate OpenAPI/Swagger documentation (requires setup)
 	docker compose run --rm artisan l5-swagger:generate --all
 
-pint: ## 
-	docker compose run --rm --entrypoint php artisan ./vendor/bin/pint
-
 phpstan:
 	docker compose run --rm --entrypoint php artisan ./vendor/bin/phpstan analyse
 
+insights: ## Run PHP Insights analysis
+	docker compose run --rm artisan insights
 
 # ====================================================================================
 # Help Target - Generates help message based on comments
