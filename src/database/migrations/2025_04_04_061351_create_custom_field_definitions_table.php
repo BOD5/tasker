@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('custom_field_definitions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('team_id')
-                  ->nullable()
-                  ->constrained('teams')
-                  ->cascadeOnDelete();
+                ->nullable()
+                ->constrained('teams')
+                ->cascadeOnDelete();
             $table->string('name');
             $table->string('code')->index();
             $table->string('type')->index();

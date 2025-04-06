@@ -75,7 +75,7 @@ npm-build: ## Compile frontend assets for production
 	docker compose run --rm npm run build
 
 npm-dev: ## Compile frontend assets and watch for changes
-	docker compose run --rm npm run dev
+	docker compose run --rm --service-ports npm run dev -- --host
 
 migrate: ## Run database migrations
 	docker compose run --rm artisan migrate
@@ -155,6 +155,13 @@ test: ## Run PHPUnit/Pest tests
 
 swagger: ## Generate OpenAPI/Swagger documentation (requires setup)
 	docker compose run --rm artisan l5-swagger:generate --all
+
+pint: ## 
+	docker compose run --rm --entrypoint php artisan ./vendor/bin/pint
+
+phpstan:
+	docker compose run --rm --entrypoint php artisan ./vendor/bin/phpstan analyse
+
 
 # ====================================================================================
 # Help Target - Generates help message based on comments

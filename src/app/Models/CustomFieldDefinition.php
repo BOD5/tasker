@@ -11,6 +11,7 @@ class CustomFieldDefinition extends Model
 {
     /** @use HasFactory<\Database\Factories\CustomFieldDefinitionFactory> */
     use HasFactory;
+
     protected $fillable = [
         'team_id', // Nullable для глобальних полів
         'name',
@@ -19,18 +20,20 @@ class CustomFieldDefinition extends Model
         'options',
         'is_required',
     ];
+
     protected $casts = [
         'options' => 'array',
         'is_required' => 'boolean',
         'deleted_at' => 'datetime',
     ];
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
     }
+
     public function values(): HasMany
     {
         return $this->hasMany(TimeEntryCustomFieldValue::class);
     }
-
 }

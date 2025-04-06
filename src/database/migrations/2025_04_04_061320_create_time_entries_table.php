@@ -14,15 +14,15 @@ return new class extends Migration
         Schema::create('time_entries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')
-                  ->constrained('users')
-                  ->cascadeOnDelete();
+                ->constrained('users')
+                ->cascadeOnDelete();
             $table->foreignId('task_id')
-                  ->nullable()
-                  ->constrained('tasks')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('tasks')
+                ->nullOnDelete();
             $table->foreignId('team_id')
-                  ->constrained('teams')
-                  ->cascadeOnDelete();
+                ->constrained('teams')
+                ->cascadeOnDelete();
             $table->timestamp('started_at')->index();
             $table->timestamp('ended_at')->nullable()->index();
             $table->text('description');

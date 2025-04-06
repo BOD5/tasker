@@ -17,9 +17,11 @@ class Team extends Model
         'name',
         'description',
     ];
+
     protected $casts = [
         'deleted_at' => 'datetime',
     ];
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'team_user')
@@ -32,7 +34,7 @@ class Team extends Model
     {
         return $this->hasMany(Project::class);
     }
-    
+
     public function customFieldDefinitions(): HasMany
     {
         return $this->hasMany(CustomFieldDefinition::class);

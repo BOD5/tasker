@@ -14,13 +14,13 @@ return new class extends Migration
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')
-                  ->nullable()
-                  ->constrained('projects')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('projects')
+                ->nullOnDelete();
             $table->foreignId('reporter_id')
-                  ->nullable()
-                  ->constrained('users')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
             $table->string('status')->default('todo')->index();

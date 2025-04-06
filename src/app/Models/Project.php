@@ -17,13 +17,16 @@ class Project extends Model
         'name',
         'description',
     ];
+
     protected $casts = [
         'deleted_at' => 'datetime',
     ];
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
     }
+
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);

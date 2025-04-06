@@ -10,6 +10,7 @@ class TimeEntryCustomFieldValue extends Model
 {
     /** @use HasFactory<\Database\Factories\TimeEntryCustomFieldValueFactory> */
     use HasFactory;
+
     protected $fillable = [
         'time_entry_id',
         'custom_field_definition_id',
@@ -20,9 +21,9 @@ class TimeEntryCustomFieldValue extends Model
     {
         return $this->belongsTo(TimeEntry::class);
     }
+
     public function definition(): BelongsTo
     {
         return $this->belongsTo(CustomFieldDefinition::class, 'custom_field_definition_id');
     }
-
 }

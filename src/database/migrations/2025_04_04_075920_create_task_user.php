@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('task_user', function (Blueprint $table) {
             $table->id();
             $table->foreignId('task_id')
-                  ->constrained('tasks')
-                  ->cascadeOnDelete();
+                ->constrained('tasks')
+                ->cascadeOnDelete();
             $table->foreignId('user_id')
-                  ->constrained('users')
-                  ->cascadeOnDelete();
+                ->constrained('users')
+                ->cascadeOnDelete();
             $table->timestamp('assigned_at')->nullable(); // Коли призначено
             $table->timestamp('unassigned_at')->nullable(); // Коли знято з завдання
             $table->unique(['task_id', 'user_id']); // Розглянути, чи потрібен цей індекс

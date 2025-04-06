@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('time_entry_custom_field_values', function (Blueprint $table) {
             $table->id();
             $table->foreignId('time_entry_id')
-                  ->constrained('time_entries')
-                  ->cascadeOnDelete();
+                ->constrained('time_entries')
+                ->cascadeOnDelete();
             $table->foreignId('custom_field_definition_id')
-                  ->constrained('custom_field_definitions')
-                  ->cascadeOnDelete();
+                ->constrained('custom_field_definitions')
+                ->cascadeOnDelete();
             $table->text('value');
             $table->timestamps();
 
