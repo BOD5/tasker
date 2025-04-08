@@ -157,7 +157,7 @@ swagger: ## Generate OpenAPI/Swagger documentation (requires setup)
 	docker compose run --rm artisan l5-swagger:generate --all
 
 phpstan:
-	docker compose run --rm --entrypoint php artisan ./vendor/bin/phpstan analyse
+	docker compose run --rm --entrypoint php artisan vendor/bin/phpstan analyse --memory-limit=1G
 
 insights: ## Run PHP Insights analysis
 	docker compose run --rm artisan insights
