@@ -35,8 +35,14 @@ services:
       DB_APP_PASSWORD: ${DB_PASSWORD:-a_very_secure_password}
     networks:
       - database_net
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-tasker} -d ${DB_DATABASE:-tasker}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USERNAME:-tasker} -d ${DB_DATABASE:-tasker}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -64,7 +70,11 @@ services:
       - redis_net
       - web_net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:${OCTANE_PORT:-8000}/up || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:${OCTANE_PORT:-8000}/up || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,17 +84,17 @@ services:
     <<: *php_base
     container_name: tasker_horizon
     environment:
-     COMMAND: php artisan horizon
-     PROCESS: horizon
+      COMMAND: php artisan horizon
+      PROCESS: horizon
     restart: unless-stopped
     networks:
       - database_net
       - redis_net
     healthcheck:
-     test: php artisan horizon:status | grep -q 'is running'  # TODO try spatie LARAVEL-HEALTH
-     interval: 5s
-     timeout: 10s
-     retries: 20
+      test: php artisan horizon:status | grep -q 'is running' # TODO try spatie LARAVEL-HEALTH
+      interval: 5s
+      timeout: 10s
+      retries: 20
   webserver:
     image: nginx:stable-alpine
     container_name: tasker_webserver
@@ -149,8 +159,8 @@ volumes:
     driver: local
     name: composer_cache
   npm_cache:
-   driver: local
-   name: npm_cache
+    driver: local
+    name: npm_cache
 
 networks:
   database_net:
