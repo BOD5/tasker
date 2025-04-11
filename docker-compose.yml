@@ -5,14 +5,10 @@ x-php-base: &php_base
   user: ${UID}:${GID}
   volumes:
     - ./src:/var/www:delegated
+    - ./dockerfiles/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
     - composer_cache:/.composer
     - npm_cache:/.npm
   working_dir: /var/www
-  environment:
-    COMMAND: php artisan octane:start --watch --host=0.0.0.0 --port=8000
-    PROCESS: app
-    DB_USERNAME: tasker_app_user
-    DB_PASSWORD: a_very_secure_password
   depends_on:
     db:
       condition: service_healthy
@@ -69,6 +65,12 @@ services:
       - database_net
       - redis_net
       - web_net
+    environment:
+      COMMAND: php artisan octane:start --watch --host=0.0.0.0 --port=8000
+      CHOKIDAR_USEPOLLING: "true"
+      PROCESS: app
+      DB_USERNAME: tasker_app_user
+      DB_PASSWORD: a_very_secure_password
     healthcheck:
       test:
         [
@@ -145,7 +147,10 @@ services:
     <<: *php_base
     container_name: tasker_artisan
     entrypoint: ["php", "artisan"]
-    command: ["list"]
+    environment:
+      DB_USERNAME: tasker_app_user
+      DB_PASSWORD: a_very_secure_password
+      HOME: /tmp
     networks:
       - database_net
       - redis_net
