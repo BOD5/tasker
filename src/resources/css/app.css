@@ -1,3 +1,90 @@
 @tailwind base;
-@tailwind components;
+@tailwind Components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Світла тема (основні змінні) */
+    --background: 0 0% 100%; /* Білий */
+    --foreground: 0 0% 3.9%; /* Майже чорний */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 0 0% 9%; /* Темно-синій */
+    --primary-foreground: 0 0% 98%; /* Майже білий */
+
+    --secondary: 0 0% 96.1%; /* Світло-сіро-синій */
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%; /* Сірий */
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%; /* Червоний */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 89.8%; /* Світло-сірий */
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%; /* Колір для focus ring */
+
+    --radius: 0.5rem; /* Приклад змінної для радіусу */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    /* Темна тема (перевизначення змінних) */
+    --background: 0 0% 3.9%; /* Майже чорний */
+    --foreground: 0 0% 98%; /* Майже білий */
+
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%; /* Майже білий */
+    --primary-foreground: 0 0% 9%; /* Темно-синій */
+
+    --secondary: 0 0% 14.9%; /* Темно-сіро-синій */
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%; /* Світло-сірий */
+
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%; /* Темно-червоний */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%; /* Світлий колір для focus ring */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border; /* Застосовуємо змінну border до всіх елементів */
+  }
+  body {
+    /* Застосовуємо базові кольори фону та тексту */
+    @apply bg-background text-foreground;
+    /* Тут можна додати інші базові стилі для body */
+  }
+}

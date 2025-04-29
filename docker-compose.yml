@@ -7,6 +7,7 @@ x-php-base: &php_base
     - ./src:/var/www:delegated
     - ./dockerfiles/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
     - composer_cache:/.composer
+    - ./src/storage/logs:/var/www/storage/logs:rw
     - npm_cache:/.npm
   working_dir: /var/www
   depends_on:
@@ -130,15 +131,17 @@ services:
       - redis_net
 
   npm:
-    image: node:18-alpine
+    image: node:22-alpine
     container_name: tasker_npm
-    user: node
-    working_dir: /var/www/src
+    user: ${UID}:${GID}
+    working_dir: /var/www
     volumes:
       - ./src:/var/www/:delegated
       - npm_cache:/.npm
     ports:
       - 5173:5173
+    environment:
+      - HOME=/tmp
     entrypoint: ["npm"]
     networks:
       - web_net

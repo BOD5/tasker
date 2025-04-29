@@ -1,149 +1,243 @@
 <script setup>
-import { ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Button } from '@/Components/ui/button';
+import { Toaster, useToast } from '@/Components/ui/toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/Components/ui/sheet';
+import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
+import { Separator } from '@/Components/ui/separator';
+import { LogOut, User as UserIcon, Settings, Menu } from 'lucide-vue-next';
 
-const showingNavigationDropdown = ref(false);
+defineProps({
+  title: String,
+});
+
+const page = usePage();
+const { toast } = useToast();
+
+const showingMobileMenu = ref(false);
+
+const logout = () => {
+  router.post(route('logout'));
+};
+
+watch(
+  () => page.props.flash.notification,
+  (notification) => {
+    if (notification && typeof notification === 'object' && notification !== null) {
+      console.log('Flash notification received:', notification);
+
+      let toastVariant = 'default';
+      if (notification.type === 'error' || notification.type === 'danger') {
+        toastVariant = 'destructive';
+      }
+
+      toast({
+        title: notification.title ?? 'Повідомлення',
+        description: notification.message ?? '',
+        variant: toastVariant,
+        duration: notification.duration ?? 5000,
+      });
+
+      page.props.flash.notification = null;
+    }
+  },
+  { deep: true, immediate: false },
+);
 </script>
 
 <template>
   <div>
-    <div class="min-h-screen bg-gray-100">
-      <nav class="border-b border-gray-100 bg-white">
-        <!-- Primary Navigation Menu -->
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div class="flex h-16 justify-between">
-            <div class="flex">
-              <!-- Logo -->
-              <div class="flex shrink-0 items-center">
-                <Link :href="route('dashboard')">
-                  <ApplicationLogo class="block h-9 w-auto fill-current text-gray-800" />
-                </Link>
-              </div>
+    <Head :title="title" />
 
-              <!-- Navigation Links -->
-              <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                <NavLink :href="route('dashboard')" :active="route().current('dashboard')"> Dashboard </NavLink>
-              </div>
-            </div>
-
-            <div class="hidden sm:ms-6 sm:flex sm:items-center">
-              <!-- Settings Dropdown -->
-              <div class="relative ms-3">
-                <Dropdown align="right" width="48">
-                  <template #trigger>
-                    <span class="inline-flex rounded-md">
-                      <button
-                        type="button"
-                        class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                      >
-                        {{ $page.props.auth.user.name }}
-
-                        <svg
-                          class="-me-0.5 ms-2 h-4 w-4"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </span>
-                  </template>
-
-                  <template #content>
-                    <DropdownLink :href="route('profile.edit')"> Profile </DropdownLink>
-                    <DropdownLink :href="route('logout')" method="post" as="button"> Log Out </DropdownLink>
-                  </template>
-                </Dropdown>
-              </div>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-              <button
-                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                @click="showingNavigationDropdown = !showingNavigationDropdown"
-              >
-                <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                  <path
-                    :class="{
-                      hidden: showingNavigationDropdown,
-                      'inline-flex': !showingNavigationDropdown,
-                    }"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                  <path
-                    :class="{
-                      hidden: !showingNavigationDropdown,
-                      'inline-flex': showingNavigationDropdown,
-                    }"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+    <div class="min-h-screen w-full flex flex-col bg-background text-foreground">
+      <header class="sticky top-0 z-40 w-full border-b border-border bg-card">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between h-16 items-center">
+            <div class="flex items-center">
+              <Link :href="route('app.time-tracking.index')" class="mr-6 flex items-center space-x-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-6 w-6 text-primary"
+                >
+                  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0Z" />
+                  <path d="M12 7v5l3 1.5" />
                 </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Responsive Navigation Menu -->
-        <div
-          :class="{
-            block: showingNavigationDropdown,
-            hidden: !showingNavigationDropdown,
-          }"
-          class="sm:hidden"
-        >
-          <div class="space-y-1 pb-3 pt-2">
-            <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
-              Dashboard
-            </ResponsiveNavLink>
-          </div>
-
-          <!-- Responsive Settings Options -->
-          <div class="border-t border-gray-200 pb-1 pt-4">
-            <div class="px-4">
-              <div class="text-base font-medium text-gray-800">
-                {{ $page.props.auth.user.name }}
-              </div>
-              <div class="text-sm font-medium text-gray-500">
-                {{ $page.props.auth.user.email }}
-              </div>
+                <span class="font-bold text-foreground hidden sm:inline-block">Tasker</span>
+              </Link>
+              <nav class="hidden md:flex md:items-center md:space-x-6 text-sm font-medium">
+                <Link
+                  :href="route('app.time-tracking.index')"
+                  class="transition-colors hover:text-foreground/80"
+                  :class="route().current('app.time-tracking.index') ? 'text-foreground' : 'text-muted-foreground'"
+                >
+                  Time Tracking
+                </Link>
+                <Link href="#" class="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  Tasks (TBD)
+                </Link>
+                <Link href="#" class="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  Projects (TBD)
+                </Link>
+              </nav>
             </div>
 
-            <div class="mt-3 space-y-1">
-              <ResponsiveNavLink :href="route('profile.edit')"> Profile </ResponsiveNavLink>
-              <ResponsiveNavLink :href="route('logout')" method="post" as="button"> Log Out </ResponsiveNavLink>
+            <div class="flex items-center space-x-2 sm:space-x-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" class="relative h-9 w-9 rounded-full">
+                    <Avatar class="h-9 w-9">
+                      <AvatarImage
+                        v-if="$page.props.auth.user.profile_photo_url"
+                        :src="$page.props.auth.user.profile_photo_url"
+                        :alt="$page.props.auth.user.name"
+                      />
+                      <AvatarFallback>
+                        {{ $page.props.auth.user.name.substring(0, 2).toUpperCase() }}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent class="w-56" align="end">
+                  <DropdownMenuLabel>
+                    <div class="font-medium text-sm text-foreground">{{ $page.props.auth.user.name }}</div>
+                    <div class="text-xs text-muted-foreground">{{ $page.props.auth.user.email }}</div>
+                  </DropdownMenuLabel>
+                  <Separator />
+                  <DropdownMenuItem as-child>
+                    <Link :href="route('profile.edit')">
+                      <UserIcon class="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled>
+                    <Settings class="mr-2 h-4 w-4" />
+                    <span>Settings (TBD)</span>
+                  </DropdownMenuItem>
+                  <Separator />
+                  <DropdownMenuItem class="cursor-pointer" @click.prevent="logout">
+                    <LogOut class="mr-2 h-4 w-4" />
+                    <span>Log Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Sheet v-model:open="showingMobileMenu">
+                <SheetTrigger as-child class="md:hidden">
+                  <Button variant="ghost" size="icon">
+                    <Menu class="h-5 w-5" />
+                    <span class="sr-only">Toggle Menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" class="w-[280px]">
+                  <SheetHeader class="mb-4 text-left">
+                    <SheetTitle>
+                      <Link
+                        :href="route('app.time-tracking.index')"
+                        class="flex items-center space-x-2"
+                        @click="showingMobileMenu = false"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="h-6 w-6 text-primary"
+                        >
+                          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0Z" />
+                          <path d="M12 7v5l3 1.5" />
+                        </svg>
+                        <span class="font-bold text-lg">Tasker</span>
+                      </Link>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <Separator class="mb-4" />
+                  <div class="flex flex-col space-y-1">
+                    <Link
+                      :href="route('app.time-tracking.index')"
+                      class="text-base py-2 px-2 rounded-md hover:bg-accent"
+                      :class="
+                        route().current('app.time-tracking.index')
+                          ? 'text-primary font-semibold bg-accent'
+                          : 'text-muted-foreground hover:text-foreground'
+                      "
+                      @click="showingMobileMenu = false"
+                    >
+                      Time Tracking
+                    </Link>
+                    <Link
+                      href="#"
+                      class="text-base py-2 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                      @click="showingMobileMenu = false"
+                    >
+                      Tasks (TBD)
+                    </Link>
+                    <Link
+                      href="#"
+                      class="text-base py-2 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                      @click="showingMobileMenu = false"
+                    >
+                      Projects (TBD)
+                    </Link>
+                    <Separator class="my-2" />
+                    <Link
+                      :href="route('profile.edit')"
+                      class="text-base py-2 px-2 rounded-md hover:bg-accent"
+                      :class="
+                        route().current('profile.edit')
+                          ? 'text-primary font-semibold bg-accent'
+                          : 'text-muted-foreground hover:text-foreground'
+                      "
+                      @click="showingMobileMenu = false"
+                    >
+                      Profile
+                    </Link>
+                    <Separator class="my-2" />
+                    <button
+                      class="w-full text-left text-base py-2 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                      @click.prevent="logout"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
-        </div>
-      </nav>
-
-      <!-- Page Heading -->
-      <header v-if="$slots.header" class="bg-white shadow">
-        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <slot name="header" />
         </div>
       </header>
 
-      <!-- Page Content -->
-      <main>
+      <div v-if="$slots.header" class="border-b border-border bg-card shadow-sm">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+          <slot name="header" />
+        </div>
+      </div>
+
+      <main class="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <slot />
       </main>
+
+      <footer class="py-4 text-center text-sm text-muted-foreground border-t border-border mt-auto">
+        Tasker App &copy; {{ new Date().getFullYear() }}
+      </footer>
+      <Toaster />
     </div>
   </div>
 </template>

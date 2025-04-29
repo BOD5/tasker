@@ -55,11 +55,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function teams(): BelongsToMany
     {
-        // Припускаємо, що проміжна таблиця team_user має поле 'role' та 'deleted_at'
         return $this->belongsToMany(Team::class, 'team_user')
             ->withPivot('role')
-            ->withTimestamps() // Якщо в team_user є timestamps
-            ->wherePivotNull('deleted_at'); // Отримуємо лише активні членства
+            ->withTimestamps()
+            ->wherePivotNull('deleted_at');
     }
 
     public function timeEntries(): HasMany

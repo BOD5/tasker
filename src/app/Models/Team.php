@@ -24,7 +24,7 @@ class Team extends Model
 
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'team_user')
+        return $this->belongsToMany(User::class, 'team_user', 'team_id', 'user_id')
             ->withPivot('role')
             ->withTimestamps()
             ->wherePivotNull('deleted_at');
