@@ -15,19 +15,14 @@ class StoreTimeEntryRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Дозволяємо лише автентифікованим користувачам
-        // І перевіряємо, чи користувач належить до обраної команди
         if (!Auth::check()) {
             return false;
         }
         $teamId = $this->input('team_id');
         if ($teamId) {
-            // Перевіряємо активне членство користувача в обраній команді
             return Auth::user()->teams()->where('teams.id', $teamId)->exists();
         }
-        // Якщо team_id не передано (хоча ми зробили його required), забороняємо
-        // Або можна дозволити, якщо є логіка "особистих" записів без команди
-        return false; // Робимо команду обов'язковою для створення запису
+        return false;
     }
 
     /**
@@ -42,6 +37,8 @@ class StoreTimeEntryRequest extends FormRequest
             'team_id'     => 'required|integer|exists:teams,id',
             'task_id'     => 'nullable|integer|exists:tasks,id',
             'custom_fields' => 'nullable|array',
+            'started_at'  => 'nullable|date',
+            'ended_at'    => 'nullable|date|after_or_equal:started_at',
         ];
 
         $teamId = $this->input('team_id');

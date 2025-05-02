@@ -1,11 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'; // Додаємо ref
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useInfiniteScroll } from '@vueuse/core';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import TimerControlBar from '@/Components/TimerControlBar.vue';
 import TimeEntryHistoryTable from '@/Components/TimeEntryHistoryTable.vue';
-import EditTimeEntryForm from '@/Components/EditTimeEntryForm.vue'; // <-- Імпортуємо форму редагування
-import { Dialog, DialogContent } from '@/Components/ui/dialog'; // <-- Імпортуємо Dialog
+import TimeEntryForm from '@/Components/TimeEntryForm.vue';
+import TimeEntryFilters from '@/Components/TimeEntryFilters.vue';
+import { Dialog, DialogContent } from '@/Components/ui/dialog';
+import { Button } from '@/Components/ui/button';
+import { useTimeEntries } from '@/Composables/useTimeEntries';
+import { useTimeEntryModal } from '@/Composables/useTimeEntryModal';
+import { useTimeEntryActions } from '@/Composables/useTimeEntryActions';
 
 const props = defineProps({
   activeTimer: Object,
@@ -15,85 +21,84 @@ const props = defineProps({
   customFieldDefinitions: Array,
   errors: Object,
   filters: Object,
+  lastTeamId: Number | null,
+  generalTeamId: Number | null,
 });
 
-const entryToEdit = ref(null);
-const isEditDialogOpen = computed({
-  get: () => !!entryToEdit.value,
-  set: (value) => {
-    if (!value) {
-      entryToEdit.value = null;
-    }
-  },
+const { displayedEntries, loadingMore, loadMoreEntries, reloadEntries, hasNextPage } = useTimeEntries();
+const { entryInModal, isModalOpen, openCreateModal, openEditModal, closeModal } = useTimeEntryModal();
+const { submitEntry, deleteEntry, stopTimeEntry } = useTimeEntryActions(reloadEntries, closeModal);
+
+const scrollContainerRef = ref(document.documentElement);
+
+useInfiniteScroll(scrollContainerRef, loadMoreEntries, {
+  distance: 400,
+  canLoadMore: () => hasNextPage.value && !loadingMore.value,
 });
 
-const handleChangePeriod = (period) => {
-  router.get(
-    route('app.time-tracking.index'),
-    { period: period },
-    {
-      preserveState: true, // Зберігаємо стан форми в TimerControlBar
-      replace: true,
-    },
-  );
+const applyFilters = (filterData) => {
+  reloadEntries({ ...filterData, page: 1 });
 };
 
-const handleDeleteEntry = (entryId) => {
-  if (confirm('Ви впевнені, що хочете видалити цей запис часу?')) {
-    router.delete(route('app.time-entries.destroy', entryId), {
-      preserveScroll: true,
-    });
+const applySort = (column) => {
+  let direction = 'asc';
+  if (props.filters?.sort === column && props.filters?.direction === 'asc') {
+    direction = 'desc';
   }
-};
-
-// Обробник події редагування - встановлює запис і відкриває модалку
-const handleEditEntry = (entry) => {
-  console.log('Editing entry:', entry); // Для дебагу
-  entryToEdit.value = entry; // Встановлюємо запис, що призведе до isEditDialogOpen = true
-};
-
-// Обробник події закриття модалки від дочірнього компонента
-const closeEditModal = () => {
-  entryToEdit.value = null; // Скидаємо запис, що призведе до isEditDialogOpen = false
+  reloadEntries({ sort: column, direction: direction, page: 1 });
 };
 </script>
 
 <template>
   <Head title="Time Tracking" />
-
   <AuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-foreground leading-tight">Відслідковування Часу</h2>
     </template>
-
-    <div class="py-6">
+    <div class="py-6" ref="scrollContainerRef">
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
         <TimerControlBar
           :activeTimer="activeTimer"
           :availableTeams="availableTeams"
           :availableTasks="availableTasks"
           :customFieldDefinitions="customFieldDefinitions"
-          :errors="errors"
+          :errors="$page.props.errors"
+          :lastTeamId="props.lastTeamId"
+          :generalTeamId="props.generalTeamId"
+          @start="submitEntry"
+          @stop="stopTimeEntry"
+          @updateDetails="submitEntry"
         />
+        <div class="text-right">
+          <Button variant="outline" @click="openCreateModal"> + Додати Запис </Button>
+        </div>
+
+        <TimeEntryFilters :filters="filters" @filter="applyFilters" />
 
         <TimeEntryHistoryTable
-          :time-entries="timeEntries"
+          :entries="displayedEntries"
           :active-timer-id="activeTimer?.id"
           :filters="filters"
-          @change-period="handleChangePeriod"
-          @delete-entry="handleDeleteEntry"
-          @edit-entry="handleEditEntry"
+          @sort="applySort"
+          @delete-entry="deleteEntry"
+          @edit-entry="openEditModal"
         />
 
-        <Dialog :open="isEditDialogOpen" @update:open="isEditDialogOpen = $event">
-          <DialogContent class="sm:max-w-[650px]">
-            <EditTimeEntryForm
-              v-if="entryToEdit"
-              :entry="entryToEdit"
+        <div v-if="loadingMore" class="text-center py-4 text-muted-foreground">Завантаження...</div>
+
+        <Dialog :open="isModalOpen" @update:open="isModalOpen = $event">
+          <DialogContent class="sm:max-w-[650px] max-h-[90vh] flex flex-col">
+            <TimeEntryForm
+              v-if="entryInModal !== null"
+              :entry="entryInModal?.id ? entryInModal : null"
               :availableTeams="availableTeams"
               :availableTasks="availableTasks"
               :customFieldDefinitions="customFieldDefinitions"
-              @close="closeEditModal"
+              :lastTeamId="props.lastTeamId"
+              :generalTeamId="props.generalTeamId"
+              :isDarkModeEnabled="false"
+              @close="closeModal"
+              @submit="submitEntry"
             />
           </DialogContent>
         </Dialog>

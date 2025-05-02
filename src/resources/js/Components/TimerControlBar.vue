@@ -1,14 +1,15 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { ref, computed, watch, toRef } from 'vue';
+import { useForm } from '@inertiajs/vue3';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/Components/ui/popover';
-import InputError from '@/Components/InputError.vue';
-import { useToast } from '@/Components/ui/toast/use-toast';
-import { Play, Square, Settings2 } from 'lucide-vue-next';
 import TimeEntryDetailsForm from '@/Components/TimeEntryDetailsForm.vue';
 import TimeEntryStartTimeForm from '@/Components/TimeEntryStartTimeForm.vue';
+import { Play, Square, Settings2 } from 'lucide-vue-next';
+import { useDateTimeFormatters } from '@/Composables/useDateTimeFormatters';
+import { useRunningTimer } from '@/Composables/useRunningTimer';
 
 const props = defineProps({
   activeTimer: Object,
@@ -20,7 +21,10 @@ const props = defineProps({
   errors: Object,
 });
 
-const { toast } = useToast();
+const emit = defineEmits(['start', 'stop', 'updateDetails']);
+
+const { formatForInput, dateToUTC } = useDateTimeFormatters();
+const { runningDuration } = useRunningTimer(toRef(props, 'activeTimer'));
 
 const form = useForm({
   description: '',
@@ -32,18 +36,6 @@ const form = useForm({
 
 const isDetailsPopoverOpen = ref(false);
 const isTimePopoverOpen = ref(false);
-
-const formatForInput = (dateTimeString) => {
-  if (!dateTimeString) return '';
-  try {
-    const date = new Date(dateTimeString);
-    const offset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() - offset);
-    return localDate.toISOString().slice(0, 19);
-  } catch (e) {
-    return '';
-  }
-};
 
 watch(
   () => props.activeTimer,
@@ -83,116 +75,36 @@ watch(
 
 const isTimerRunning = computed(() => !!props.activeTimer);
 
-const runningDuration = ref('00:00:00');
-let intervalId = null;
-const updateRunningDuration = () => {
-  if (props.activeTimer?.started_at) {
-    try {
-      const start = new Date(props.activeTimer.started_at);
-      if (isNaN(start.getTime())) {
-        runningDuration.value = '--:--:--';
-        return;
-      }
-      const now = new Date();
-      const diffInSeconds = Math.max(0, Math.round((now - start) / 1000));
-      const hours = Math.floor(diffInSeconds / 3600);
-      const minutes = Math.floor((diffInSeconds % 3600) / 60);
-      const seconds = diffInSeconds % 60;
-      runningDuration.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    } catch (e) {
-      runningDuration.value = 'Error';
-    }
-  } else {
-    runningDuration.value = '00:00:00';
-  }
-};
-watch(
-  () => props.activeTimer,
-  (newTimer) => {
-    if (newTimer && newTimer.id && newTimer.started_at) {
-      if (!intervalId) {
-        updateRunningDuration();
-        intervalId = setInterval(updateRunningDuration, 1000);
-      }
-    } else if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-      runningDuration.value = '00:00:00';
-    }
-  },
-  { immediate: true, deep: true },
-);
-onUnmounted(() => {
-  if (intervalId) clearInterval(intervalId);
-});
-
-const startTimer = () => {
-  form
-    .transform((data) => ({
-      description: data.description,
-      team_id: data.team_id,
-      task_id: data.task_id,
-      custom_fields: data.custom_fields,
-    }))
-    .post(route('app.time-entries.store'), {
-      preserveScroll: true,
-      onSuccess: () => {},
-    });
+const triggerStartTimer = () => {
+  emit('start', form);
 };
 
-const stopTimer = () => {
+const triggerStopTimer = () => {
   if (!props.activeTimer) return;
-  router.put(
-    route('app.time-entries.stop', props.activeTimer.id),
-    {},
-    {
-      preserveScroll: true,
-      onSuccess: () => {
-        form.reset();
-      },
-    },
-  );
+  emit('stop', props.activeTimer.id);
 };
 
-const updateTimerDetails = () => {
+const triggerUpdateDetails = () => {
   if (!isTimerRunning.value || !form.isDirty) {
+    if (isDetailsPopoverOpen.value && !form.isDirty) isDetailsPopoverOpen.value = false;
+    if (isTimePopoverOpen.value && !form.isDirty) isTimePopoverOpen.value = false;
     return;
   }
-  form
-    .transform((data) => {
-      let startUTC = null;
-      try {
-        if (data.started_at) {
-          startUTC = new Date(data.started_at).toISOString();
-        }
-      } catch (e) {
-        console.error('Error parsing start date for save:', data.started_at, e);
-      }
-      return {
-        description: data.description,
-        team_id: data.team_id,
-        task_id: data.task_id,
-        custom_fields: data.custom_fields,
-        started_at: startUTC ?? props.activeTimer?.started_at,
-      };
-    })
-    .put(route('app.time-entries.update', props.activeTimer.id), {
-      preserveScroll: true,
-      preserveState: 'errors',
-      onSuccess: () => {
-        toast({ title: 'Деталі оновлено' });
-        form.defaults().reset();
-      },
-      onError: (errors) => {
-        toast({ title: 'Помилка оновлення', description: Object.values(errors).join(' '), variant: 'destructive' });
-        form.reset();
-      },
-    });
+  const transformedData = {
+    description: form.description,
+    team_id: form.team_id,
+    task_id: form.task_id,
+    custom_fields: form.custom_fields,
+    started_at: dateToUTC(form.started_at),
+  };
+  emit('updateDetails', { id: props.activeTimer.id, data: transformedData });
+  isDetailsPopoverOpen.value = false;
+  isTimePopoverOpen.value = false;
 };
 
 watch(isDetailsPopoverOpen, (newValue, oldValue) => {
   if (oldValue === true && newValue === false && isTimerRunning.value) {
-    updateTimerDetails();
+    triggerUpdateDetails();
   }
 });
 
@@ -200,7 +112,7 @@ watch(isTimePopoverOpen, (newValue, oldValue) => {
   if (oldValue === true && newValue === false && isTimerRunning.value) {
     const originalFormatted = formatForInput(props.activeTimer?.started_at);
     if (form.started_at !== originalFormatted) {
-      updateTimerDetails();
+      triggerUpdateDetails();
     }
   }
 });
@@ -217,10 +129,12 @@ watch(isTimePopoverOpen, (newValue, oldValue) => {
           placeholder="Що ви робите?"
           v-model="form.description"
           :disabled="form.processing"
-          @blur="isTimerRunning ? updateTimerDetails() : null"
-          @keyup.enter="isTimerRunning ? updateTimerDetails() : startTimer()"
+          @blur="isTimerRunning ? triggerUpdateDetails() : null"
+          @keyup.enter="isTimerRunning ? triggerUpdateDetails() : triggerStartTimer()"
         />
-        <InputError class="mt-1 text-xs" :message="form.errors.description || errors?.description" />
+        <p v-if="errors?.description || form.errors.description" class="text-sm text-destructive mt-1">
+          {{ errors?.description ?? form.errors.description }}
+        </p>
       </div>
 
       <div class="flex items-center gap-3 flex-shrink-0">
@@ -237,19 +151,15 @@ watch(isTimePopoverOpen, (newValue, oldValue) => {
               :availableTeams="availableTeams"
               :availableTasks="availableTasks"
               :customFieldDefinitions="customFieldDefinitions"
-              :errors="errors"
+              :errors="errors ?? form.errors"
             />
           </PopoverContent>
         </Popover>
 
         <Popover v-model:open="isTimePopoverOpen">
-          <PopoverTrigger as-child>
+          <PopoverTrigger as-child :disabled="!isTimerRunning || form.processing">
             <span
-              class="w-28 text-xl font-semibold font-mono text-foreground tabular-nums text-center transition-colors duration-150"
-              :class="{
-                'cursor-pointer hover:text-primary': isTimerRunning && !form.processing,
-                'cursor-not-allowed opacity-50 pointer-events-none': !isTimerRunning || form.processing,
-              }"
+              class="w-28 text-xl font-semibold font-mono text-foreground tabular-nums text-center cursor-pointer hover:text-primary"
               title="Змінити час початку"
             >
               {{ runningDuration }}
@@ -257,13 +167,18 @@ watch(isTimePopoverOpen, (newValue, oldValue) => {
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0">
             <TimeEntryStartTimeForm :form="form" />
+            <div class="p-3 border-t border-border flex justify-end">
+              <Button type="button" size="sm" @click="triggerUpdateDetails" :disabled="form.processing"
+                >Зберегти час</Button
+              >
+            </div>
           </PopoverContent>
         </Popover>
 
         <Button
           :variant="isTimerRunning ? 'destructive' : 'default'"
           size="lg"
-          @click="isTimerRunning ? stopTimer() : startTimer()"
+          @click="isTimerRunning ? triggerStopTimer() : triggerStartTimer()"
           :disabled="form.processing || (!isTimerRunning && (!form.description || !form.team_id))"
           class="w-28"
         >

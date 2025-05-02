@@ -6,6 +6,7 @@ use App\Http\Requests\StoreTimeEntryRequest;
 use App\Http\Requests\UpdateTimeEntryRequest;
 use App\Models\CustomFieldDefinition;
 use App\Models\Task;
+use App\Models\Team;
 use App\Policies\TimeEntryPolicy;
 use App\Models\TimeEntry;
 use App\Models\TimeEntryCustomFieldValue;
@@ -17,7 +18,7 @@ use Inertia\Response as InertiaResponse;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Validation\Rule;
 
 class TimeEntryController extends Controller
 {
@@ -25,55 +26,70 @@ class TimeEntryController extends Controller
 
     public function index(Request $request): InertiaResponse
     {
-        $user = Auth::user();
-        $period = $request->input('period', 'today');
+        $validated = $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d|after_or_equal:start_date',
+            'sort' => ['nullable', 'string', Rule::in(['description', 'started_at', 'ended_at'])],
+            'direction' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
+        ]);
+
+        $user = Auth::user()->loadMissing('teams:id');
+        $startDate = $validated['start_date'] ?? null;
+        $endDate = $validated['end_date'] ?? null;
+        $sortColumn = $validated['sort'] ?? 'started_at';
+        $sortDirection = $validated['direction'] ?? 'desc';
+        $perPage = 30;
+        $effectiveStartDate = $startDate ? Carbon::parse($startDate) : null;
+        $effectiveEndDate = $endDate ? Carbon::parse($endDate) : null;
 
         $activeTimer = TimeEntry::where('user_id', $user->id)
             ->whereNull('ended_at')
-            ->with(['task:id,title', 'team:id,name'])
+            ->with([
+                'task:id,title',
+                'team:id,name',
+                'customFieldValues.definition:id,code,type,name,options,is_required'
+            ])
             ->first();
 
         $timeEntriesQuery = TimeEntry::where('user_id', $user->id)
-            ->with(['task:id,title', 'team:id,name'])
-            ->latest('started_at');
+            ->with([
+                'task:id,title',
+                'team:id,name',
+                'customFieldValues.definition:id,code,type,name,options,is_required'
+            ]);
 
-        match ($period) {
-            'week' => $timeEntriesQuery->whereBetween('started_at', [
-                Carbon::now()->startOfWeek(Carbon::MONDAY),
-                Carbon::now()->endOfWeek(Carbon::SUNDAY),
-            ]),
-            'month' => $timeEntriesQuery->whereBetween('started_at', [
-                Carbon::now()->startOfMonth(),
-                Carbon::now()->endOfMonth(),
-            ]),
-            default => $timeEntriesQuery->whereDate('started_at', Carbon::today()),
-        };
-        $timeEntries = match ($period) {
-            'week', 'month' => $timeEntriesQuery->paginate(15)->withQueryString(), // Додаємо параметри запиту до посилань пагінації
-            default => $timeEntriesQuery->get(),
-        };
-        $availableTeams = $user->teams()->select('teams.id', 'teams.name')->get();
+        if ($effectiveStartDate) {
+            $queryStart = $effectiveStartDate->copy()->startOfDay();
+            $queryEnd = $effectiveEndDate ? $effectiveEndDate->copy()->endOfDay() : $effectiveStartDate->copy()->endOfDay();
+            $timeEntriesQuery->whereBetween('started_at', [$queryStart, $queryEnd]);
+        }
 
+        $timeEntriesQuery->orderBy($sortColumn, $sortDirection);
+        if ($sortColumn !== 'started_at') {
+            $timeEntriesQuery->orderBy('started_at', 'desc');
+        }
+
+        $timeEntries = $timeEntriesQuery->paginate($perPage)->withQueryString();
+
+        $availableTeams = $user->teams()->select('teams.id', 'teams.name')->get();;
         $availableTasks = Task::query()
             ->where(function ($query) use ($user) {
                 $query->whereRelation('assignees', 'users.id', $user->id);
             })
             ->whereNotIn('status', ['done', 'archived'])
-            ->select('id', 'title', 'project_id')
-            ->orderBy('title')
-            ->get();
+            ->select('id', 'title', 'project_id')->orderBy('title')->get();
 
-        try {
-            $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
-            $customFieldDefinitions = CustomFieldDefinition::query()
-                ->whereNull('team_id')
-                ->orWhereIn('team_id', $userTeamIds)
-                ->orderBy('name')
-                ->get(['id', 'team_id', 'name', 'code', 'type', 'options', 'is_required']);
-        } catch (\Throwable $e) {
-            Log::error('Failed to fetch custom fields or user teams', ['exception' => $e]);
-            $customFieldDefinitions = collect();
-        }
+        $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
+        $customFieldDefinitions = CustomFieldDefinition::query()
+            ->whereNull('team_id')
+            ->orWhereIn('team_id', $userTeamIds)
+            ->orderBy('name')
+            ->get(['id', 'team_id', 'name', 'code', 'type', 'options', 'is_required']);
+
+        $lastEntry = TimeEntry::where('user_id', $user->id)->latest('id')->first();
+        $lastTeamId = $lastEntry?->team_id;
+        $generalTeamId = Team::where('name', 'General')->value('id');
+
 
         return Inertia::render('TimeTracking/Dashboard', [
             'activeTimer' => $activeTimer,
@@ -81,9 +97,18 @@ class TimeEntryController extends Controller
             'availableTeams' => $availableTeams,
             'availableTasks' => $availableTasks,
             'customFieldDefinitions' => $customFieldDefinitions,
-            'filters' => ['period' => $period]
+            'lastTeamId' => $lastTeamId ?? null,
+            'generalTeamId' => $generalTeamId ?? null,
+            'filters' => [
+                'start_date' => $effectiveStartDate?->toDateString(),
+                'end_date' => $effectiveEndDate?->toDateString(),
+                'sort' => $sortColumn,
+                'direction' => $sortDirection,
+            ],
+            'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -106,8 +131,8 @@ class TimeEntryController extends Controller
             'team_id'     => $validated['team_id'],
             'task_id'     => $validated['task_id'] ?? null,
             'description' => $validated['description'],
-            'started_at'  => now(),
-            'ended_at'    => null,
+            'started_at'  => isset($validated['started_at']) ? Carbon::parse($validated['started_at']) : now(),
+            'ended_at'    => isset($validated['ended_at']) ? Carbon::parse($validated['ended_at']) : null,
         ]);
 
         $customFieldsInput = $validated['custom_fields'] ?? [];

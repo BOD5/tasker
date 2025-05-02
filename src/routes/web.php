@@ -30,7 +30,6 @@ Route::prefix('app')
     ->name('app.')
     ->group(function () {
         Route::get('/time-tracking', [TimeEntryController::class, 'index'])->name('time-tracking.index');
-
         Route::post('/time-entries', [TimeEntryController::class, 'store'])->name('time-entries.store');
         Route::put('/time-entries/{timeEntry}', [TimeEntryController::class, 'update'])->name('time-entries.update');
         Route::put('/time-entries/{timeEntry}/stop', [TimeEntryController::class, 'stop'])->name('time-entries.stop');
